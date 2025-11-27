@@ -1570,7 +1570,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { Package, Truck, Settings, FileText, Factory, Calculator, Folder, BarChart3, HelpCircle, Edit, Users, X, Search, ArrowUp, ArrowDown, RefreshCw, Shield, UserPlus, KeyRound } from 'lucide-vue-next'
+import { Package, Truck, Settings, FileText, Factory, Calculator, Folder, BarChart3, HelpCircle, Edit, Users, X, Search, ArrowUp, ArrowDown, RefreshCw, Shield, UserPlus, KeyRound, DollarSign } from 'lucide-vue-next'
 import LoginScreen from './components/LoginScreen.vue'
 import ItemForm from './components/ItemForm.vue'
 import PartnerForm from './components/PartnerForm.vue'
@@ -1579,6 +1579,7 @@ import StockTransactionForm from './components/StockTransactionForm.vue'
 import LocationForm from './components/LocationForm.vue'
 import CycleCountForm from './components/CycleCountForm.vue'
 import ProductionPlanCalendar from './components/ProductionPlanCalendar.vue'
+import ChartOfAccounts from './components/ChartOfAccounts.vue'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 
@@ -1643,12 +1644,13 @@ const icons = ref([
   { id: 'purchase', nameKey: 'desktop.purchase', icon: FileText, x: 130, y: 130 },
   { id: 'production', nameKey: 'Production Planning', icon: Factory, x: 30, y: 230 },
   { id: 'mrp', nameKey: 'desktop.mrp', icon: Calculator, x: 130, y: 230 },
-  { id: 'settings', nameKey: 'desktop.settings', icon: Settings, x: 30, y: 330 },
-  { id: 'reports', nameKey: 'desktop.appMarket', icon: BarChart3, x: 130, y: 330 },
-  { id: 'folder1', nameKey: '', icon: Folder, x: 30, y: 460 },
-  { id: 'folder2', nameKey: '', icon: Folder, x: 130, y: 460 },
-  { id: 'help', nameKey: '', icon: HelpCircle, x: 30, y: 540 },
-  { id: 'edit', nameKey: '', icon: Edit, x: 130, y: 540 },
+  { id: 'accounting', nameKey: 'Accounting', icon: DollarSign, x: 30, y: 330, requiresRole: ['admin', 'manager'] },
+  { id: 'settings', nameKey: 'desktop.settings', icon: Settings, x: 130, y: 330 },
+  { id: 'reports', nameKey: 'desktop.appMarket', icon: BarChart3, x: 30, y: 430 },
+  { id: 'folder1', nameKey: '', icon: Folder, x: 130, y: 460 },
+  { id: 'folder2', nameKey: '', icon: Folder, x: 30, y: 540 },
+  { id: 'help', nameKey: '', icon: HelpCircle, x: 130, y: 540 },
+  { id: 'edit', nameKey: '', icon: Edit, x: 30, y: 620 },
 ])
 
 const windows = ref([])

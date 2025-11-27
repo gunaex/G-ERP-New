@@ -942,26 +942,113 @@ class MasterAccount(Base):
     __tablename__ = "master_account"
     
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(20), unique=True, nullable=False, index=True)  # e.g., 1001
-    name = Column(String(200), nullable=False)  # e.g., Cash on Hand
-    account_type = Column(SQLEnum(AccountType), nullable=False)
+    code = Column(String(20), unique=True, nullable=False, index=True)  # e.g., 11100
+    name_th = Column(String(200), nullable=False)  # e.g., เงินสดในมือ
+    name_en = Column(String(200), nullable=True)   # e.g., Cash on Hand
+    
+    # Thai 5-Category System (1=Asset, 2=Liability, 3=Equity, 4=Revenue, 5=Expense)
+    account_type = Column(SQLEnum(AccountType), nullable=False, index=True)
+    
+    # Hierarchy Support (SAP B1 Style)
     parent_id = Column(Integer, ForeignKey("master_account.id"), nullable=True)
+    account_level = Column(Integer, default=1)  # 1-5 levels
+    
+    # Account Properties
+    is_postable = Column(Boolean, default=True)  # False = Title/Header account
+    normal_balance = Column(SQLEnum('DEBIT', 'CREDIT', name='balance_type'), default='DEBIT')
     is_active = Column(Boolean, default=True)
     description = Column(Text, nullable=True)
     
+    # Relationships
     parent = relationship("MasterAccount", remote_side=[id], backref="children")
     journal_lines = relationship("TrnJournalEntryLine", back_populates="account")
+
+
+class GLDetermination(Base):
+    """
+    SAP B1-style GL Account Determination
+    Maps business processes to GL accounts without hardcoding
+    """
+    __tablename__ = "gl_determinations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    profile_name = Column(String(50), default="Default", index=True)
+    process_key = Column(String(50), nullable=False, index=True)  # e.g., 'SALES_REVENUE'
+    account_id = Column(Integer, ForeignKey("master_account.id"), nullable=False)
+    description = Column(String(255), nullable=True)
+    
+    account = relationship("MasterAccount")
+
+
+class WHTTaxCode(Base):
+    """Thai Withholding Tax Master Data"""
+    __tablename__ = "wht_tax_codes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(10), unique=True, nullable=False)  # W1, W3, W5
+    rate = Column(Numeric(5, 2), nullable=False)  # 1.00, 3.00, 5.00
+    income_type_code = Column(String(20), nullable=False)  # 40(1), 40(2), 40(4)(a)
+    description_th = Column(String(200), nullable=False)
+    description_en = Column(String(200), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class WHTCertificate(Base):
+    """Thai Withholding Tax Certificate (50 Bis)"""
+    __tablename__ = "wht_certificates"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    book_number = Column(String(20), nullable=False)  # 2025/001
+    certificate_date = Column(Date, nullable=False)
+    
+    # Link to Payment
+    payment_id = Column(Integer, nullable=True)  # FK to future Payment table
+    
+    # Payer/Payee Info (Snapshot at time of creation)
+    payer_tax_id = Column(String(13), nullable=False)
+    payer_name = Column(String(200), nullable=False)
+    payer_branch = Column(String(5), default="00000")
+    
+    payee_tax_id = Column(String(13), nullable=False)
+    payee_name = Column(String(200), nullable=False)
+    payee_branch = Column(String(5), default="00000")
+    
+    # WHT Details
+    wht_code_id = Column(Integer, ForeignKey("wht_tax_codes.id"), nullable=False)
+    base_amount = Column(Numeric(18, 2), nullable=False)
+    tax_amount = Column(Numeric(18, 2), nullable=False)
+    
+    # Status
+    status = Column(String(20), default="ISSUED")  # ISSUED, CANCELLED
+    
+    wht_code = relationship("WHTTaxCode")
+
+
+class TaxGroup(Base):
+    """VAT Tax Groups (Input VAT, Output VAT, Zero Rated, Exempt)"""
+    __tablename__ = "tax_groups"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(10), unique=True, nullable=False)  # V7, Z0, E0
+    name = Column(String(100), nullable=False)
+    rate = Column(Numeric(5, 2), nullable=False)  # 7.00, 0.00
+    tax_type = Column(SQLEnum('INPUT', 'OUTPUT', name='vat_type'), nullable=False)
+    is_active = Column(Boolean, default=True)
 
 
 class TrnJournalEntryHead(Base):
     __tablename__ = "trn_journal_entry_head"
     
     id = Column(Integer, primary_key=True, index=True)
-    journal_no = Column(String(50), unique=True, nullable=False)  # e.g., JV-202511001
-    date = Column(Date, nullable=False)
+    journal_no = Column(String(50), unique=True, nullable=False, index=True)  # JV-2025-11-001
+    date = Column(Date, nullable=False, index=True)
     description = Column(String(255), nullable=True)
-    reference = Column(String(100), nullable=True)
+    reference = Column(String(100), nullable=True)  # External ref (e.g., INV-001)
     status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.DRAFT)
+    
+    # Traceability to source document
+    source_document_type = Column(String(50), nullable=True)  # 'TAX_INVOICE', 'PAYMENT', 'STOCK_MOVE'
+    source_document_id = Column(Integer, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -980,10 +1067,16 @@ class TrnJournalEntryLine(Base):
     journal_id = Column(Integer, ForeignKey("trn_journal_entry_head.id"), nullable=False)
     account_id = Column(Integer, ForeignKey("master_account.id"), nullable=False)
     
+    # Dimensions (SAP B1 Style)
+    partner_id = Column(Integer, ForeignKey("master_business_partners.id"), nullable=True)  # For AR/AP aging
+    cost_center_id = Column(Integer, nullable=True)  # Future: Cost Center master
+    project_id = Column(Integer, nullable=True)  # Future: Project master
+    
     description = Column(String(255), nullable=True)
     debit = Column(Numeric(18, 2), default=0)
     credit = Column(Numeric(18, 2), default=0)
     
     header = relationship("TrnJournalEntryHead", back_populates="lines")
     account = relationship("MasterAccount", back_populates="journal_lines")
+    partner = relationship("MasterBusinessPartner")
 

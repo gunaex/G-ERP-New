@@ -9,7 +9,7 @@ from models import (
     MasterItem, MasterBusinessPartner, ItemType, PartnerType,
     UserRole, ThemePreference, MasterBOM, BOMStatus, LocationMaster,
     MasterMachine, MachineStatus, PartnerAddress, AddressType, ConditionType,
-    MasterAccount, AccountType
+    MasterAccount, AccountType, GLDetermination, WHTTaxCode, TaxGroup
 )
 from decimal import Decimal
 
@@ -522,44 +522,136 @@ def create_seed_data():
             db.commit()
             print("[OK] Created multi-level BOM structure (3 levels)")
 
-            # 9. Create Chart of Accounts (Thai Standard 5 Categories)
-            print("Creating Chart of Accounts...")
+            # 9. Create Thai Chart of Accounts (Enhanced with Hierarchy)
+            print("Creating Thai Chart of Accounts...")
             accounts = [
                 # 1. ASSETS (สินทรัพย์)
-                MasterAccount(code="1000", name="Assets", account_type=AccountType.ASSET, is_active=True),
-                MasterAccount(code="1100", name="Current Assets", account_type=AccountType.ASSET, parent_id=None, is_active=True),
-                MasterAccount(code="1110", name="Cash and Cash Equivalents", account_type=AccountType.ASSET, parent_id=None, is_active=True),
-                MasterAccount(code="1120", name="Accounts Receivable", account_type=AccountType.ASSET, parent_id=None, is_active=True),
-                MasterAccount(code="1130", name="Inventory", account_type=AccountType.ASSET, parent_id=None, is_active=True),
-                MasterAccount(code="1200", name="Non-Current Assets", account_type=AccountType.ASSET, parent_id=None, is_active=True),
-                MasterAccount(code="1210", name="Property, Plant and Equipment", account_type=AccountType.ASSET, parent_id=None, is_active=True),
+                {"code": "10000", "name_th": "สินทรัพย์", "name_en": "Assets", "type": AccountType.ASSET, "level": 1, "postable": False, "balance": "DEBIT"},
+                {"code": "11000", "name_th": "สินทรัพย์หมุนเวียน", "name_en": "Current Assets", "type": AccountType.ASSET, "level": 2, "postable": False, "balance": "DEBIT"},
+                {"code": "11100", "name_th": "เงินสดและเงินฝากธนาคาร", "name_en": "Cash and Bank", "type": AccountType.ASSET, "level": 3, "postable": False, "balance": "DEBIT"},
+                {"code": "11110", "name_th": "เงินสด", "name_en": "Cash on Hand", "type": AccountType.ASSET, "level": 4, "postable": True, "balance": "DEBIT"},
+                {"code": "11120", "name_th": "เงินฝากธนาคาร", "name_en": "Bank Savings", "type": AccountType.ASSET, "level": 4, "postable": True, "balance": "DEBIT"},
+                {"code": "11300", "name_th": "ลูกหนี้การค้า", "name_en": "Accounts Receivable", "type": AccountType.ASSET, "level": 3, "postable": True, "balance": "DEBIT"},
+                {"code": "11400", "name_th": "สินค้าคงเหลือ", "name_en": "Inventory", "type": AccountType.ASSET, "level": 3, "postable": True, "balance": "DEBIT"},
+                {"code": "11500", "name_th": "ภาษีซื้อ", "name_en": "Input VAT", "type": AccountType.ASSET, "level": 3, "postable": True, "balance": "DEBIT"},
+                {"code": "12000", "name_th": "สินทรัพย์ไม่หมุนเวียน", "name_en": "Non-Current Assets", "type": AccountType.ASSET, "level": 2, "postable": False, "balance": "DEBIT"},
+                {"code": "12100", "name_th": "ที่ดิน อาคาร และอุปกรณ์", "name_en": "Property, Plant & Equipment", "type": AccountType.ASSET, "level": 3, "postable": True, "balance": "DEBIT"},
 
                 # 2. LIABILITIES (หนี้สิน)
-                MasterAccount(code="2000", name="Liabilities", account_type=AccountType.LIABILITY, is_active=True),
-                MasterAccount(code="2100", name="Current Liabilities", account_type=AccountType.LIABILITY, parent_id=None, is_active=True),
-                MasterAccount(code="2110", name="Accounts Payable", account_type=AccountType.LIABILITY, parent_id=None, is_active=True),
-                MasterAccount(code="2120", name="Accrued Expenses", account_type=AccountType.LIABILITY, parent_id=None, is_active=True),
-                MasterAccount(code="2130", name="VAT Payable", account_type=AccountType.LIABILITY, parent_id=None, is_active=True),
+                {"code": "20000", "name_th": "หนี้สิน", "name_en": "Liabilities", "type": AccountType.LIABILITY, "level": 1, "postable": False, "balance": "CREDIT"},
+                {"code": "21000", "name_th": "หนี้สินหมุนเวียน", "name_en": "Current Liabilities", "type": AccountType.LIABILITY, "level": 2, "postable": False, "balance": "CREDIT"},
+                {"code": "21200", "name_th": "เจ้าหนี้การค้า", "name_en": "Accounts Payable", "type": AccountType.LIABILITY, "level": 3, "postable": True, "balance": "CREDIT"},
+                {"code": "21300", "name_th": "ภาษีขาย", "name_en": "Output VAT", "type": AccountType.LIABILITY, "level": 3, "postable": True, "balance": "CREDIT"},
+                {"code": "21400", "name_th": "ภาษีหัก ณ ที่จ่ายค้างจ่าย", "name_en": "WHT Payable", "type": AccountType.LIABILITY, "level": 3, "postable": True, "balance": "CREDIT"},
 
-                # 3. EQUITY (ส่วนของเจ้าของ)
-                MasterAccount(code="3000", name="Owner's Equity", account_type=AccountType.EQUITY, is_active=True),
-                MasterAccount(code="3100", name="Share Capital", account_type=AccountType.EQUITY, parent_id=None, is_active=True),
-                MasterAccount(code="3200", name="Retained Earnings", account_type=AccountType.EQUITY, parent_id=None, is_active=True),
+                # 3. EQUITY (ส่วนของผู้ถือหุ้น)
+                {"code": "30000", "name_th": "ส่วนของผู้ถือหุ้น", "name_en": "Equity", "type": AccountType.EQUITY, "level": 1, "postable": False, "balance": "CREDIT"},
+                {"code": "31000", "name_th": "ทุนจดทะเบียน", "name_en": "Share Capital", "type": AccountType.EQUITY, "level": 2, "postable": True, "balance": "CREDIT"},
+                {"code": "32000", "name_th": "กำไรสะสม", "name_en": "Retained Earnings", "type": AccountType.EQUITY, "level": 2, "postable": True, "balance": "CREDIT"},
 
                 # 4. REVENUE (รายได้)
-                MasterAccount(code="4000", name="Revenue", account_type=AccountType.REVENUE, is_active=True),
-                MasterAccount(code="4100", name="Sales Revenue", account_type=AccountType.REVENUE, parent_id=None, is_active=True),
-                MasterAccount(code="4200", name="Other Income", account_type=AccountType.REVENUE, parent_id=None, is_active=True),
+                {"code": "40000", "name_th": "รายได้", "name_en": "Revenue", "type": AccountType.REVENUE, "level": 1, "postable": False, "balance": "CREDIT"},
+                {"code": "41000", "name_th": "รายได้จากการขาย", "name_en": "Sales Revenue", "type": AccountType.REVENUE, "level": 2, "postable": True, "balance": "CREDIT"},
+                {"code": "42000", "name_th": "รายได้อื่น", "name_en": "Other Income", "type": AccountType.REVENUE, "level": 2, "postable": True, "balance": "CREDIT"},
 
                 # 5. EXPENSES (ค่าใช้จ่าย)
-                MasterAccount(code="5000", name="Expenses", account_type=AccountType.EXPENSE, is_active=True),
-                MasterAccount(code="5100", name="Cost of Goods Sold", account_type=AccountType.EXPENSE, parent_id=None, is_active=True),
-                MasterAccount(code="5200", name="Selling Expenses", account_type=AccountType.EXPENSE, parent_id=None, is_active=True),
-                MasterAccount(code="5300", name="Administrative Expenses", account_type=AccountType.EXPENSE, parent_id=None, is_active=True),
+                {"code": "50000", "name_th": "ค่าใช้จ่าย", "name_en": "Expenses", "type": AccountType.EXPENSE, "level": 1, "postable": False, "balance": "DEBIT"},
+                {"code": "51000", "name_th": "ต้นทุนขาย", "name_en": "Cost of Goods Sold", "type": AccountType.EXPENSE, "level": 2, "postable": True, "balance": "DEBIT"},
+                {"code": "52000", "name_th": "ค่าใช้จ่ายในการขาย", "name_en": "Selling Expenses", "type": AccountType.EXPENSE, "level": 2, "postable": True, "balance": "DEBIT"},
+                {"code": "53000", "name_th": "ค่าใช้จ่ายในการบริหาร", "name_en": "Administrative Expenses", "type": AccountType.EXPENSE, "level": 2, "postable": True, "balance": "DEBIT"},
             ]
-            db.add_all(accounts)
+            
+            for acc in accounts:
+                db_acc = MasterAccount(
+                    code=acc["code"],
+                    name_th=acc["name_th"],
+                    name_en=acc["name_en"],
+                    account_type=acc["type"],
+                    account_level=acc["level"],
+                    is_postable=acc["postable"],
+                    normal_balance=acc["balance"],
+                    is_active=True
+                )
+                db.add(db_acc)
+            
             db.commit()
-            print("[OK] Created Chart of Accounts (20 accounts)")
+            print(f"[OK] Created {len(accounts)} Thai Chart of Accounts")
+
+            # 10. Create GL Determination Configurations
+            print("Creating GL Determination configurations...")
+            
+            # Helper to get account ID by code
+            def get_account_id(code):
+                return db.query(MasterAccount).filter_by(code=code).first().id
+            
+            gl_configs = [
+                {"process": "SALES_REVENUE", "account_code": "41000", "desc": "Default Sales Revenue Account"},
+                {"process": "SALES_VAT", "account_code": "21300", "desc": "Output VAT Account"},
+                {"process": "AR_DOMESTIC", "account_code": "11300", "desc": "Accounts Receivable (Domestic)"},
+                {"process": "COST_OF_GOODS", "account_code": "51000", "desc": "Cost of Goods Sold"},
+                {"process": "INVENTORY_ASSET", "account_code": "11400", "desc": "Inventory Asset Account"},
+                {"process": "AP_DOMESTIC", "account_code": "21200", "desc": "Accounts Payable (Domestic)"},
+                {"process": "INPUT_VAT", "account_code": "11500", "desc": "Input VAT Account"},
+                {"process": "WHT_PAYABLE", "account_code": "21400", "desc": "Withholding Tax Payable"},
+                {"process": "BANK_ACCOUNT", "account_code": "11120", "desc": "Default Bank Account"},
+            ]
+            
+            for config in gl_configs:
+                gl_det = GLDetermination(
+                    profile_name="Default",
+                    process_key=config["process"],
+                    account_id=get_account_id(config["account_code"]),
+                    description=config["desc"]
+                )
+                db.add(gl_det)
+            
+            db.commit()
+            print(f"[OK] Created {len(gl_configs)} GL Determination configurations")
+
+            # 11. Create WHT Tax Codes (Thai Standard)
+            print("Creating WHT Tax Codes...")
+            wht_codes = [
+                {"code": "W1", "rate": 1.00, "income_type": "40(1)", "desc_th": "เงินเดือน ค่าจ้าง", "desc_en": "Salary and Wages"},
+                {"code": "W3", "rate": 3.00, "income_type": "40(2)", "desc_th": "ค่าบริการวิชาชีพ", "desc_en": "Professional Service Fees"},
+                {"code": "W5", "rate": 5.00, "income_type": "40(3)", "desc_th": "ค่าเช่า", "desc_en": "Rental Income"},
+                {"code": "W10", "rate": 10.00, "income_type": "40(4)(a)", "desc_th": "เงินปันผล", "desc_en": "Dividends"},
+            ]
+            
+            for wht in wht_codes:
+                wht_code = WHTTaxCode(
+                    code=wht["code"],
+                    rate=Decimal(str(wht["rate"])),
+                    income_type_code=wht["income_type"],
+                    description_th=wht["desc_th"],
+                    description_en=wht["desc_en"],
+                    is_active=True
+                )
+                db.add(wht_code)
+            
+            db.commit()
+            print(f"[OK] Created {len(wht_codes)} WHT Tax Codes")
+
+            # 12. Create VAT Tax Groups
+            print("Creating VAT Tax Groups...")
+            tax_groups = [
+                {"code": "V7", "name": "VAT 7%", "rate": 7.00, "type": "OUTPUT"},
+                {"code": "V7I", "name": "Input VAT 7%", "rate": 7.00, "type": "INPUT"},
+                {"code": "Z0", "name": "Zero Rated", "rate": 0.00, "type": "OUTPUT"},
+                {"code": "E0", "name": "Exempt", "rate": 0.00, "type": "OUTPUT"},
+            ]
+            
+            for tg in tax_groups:
+                tax_group = TaxGroup(
+                    code=tg["code"],
+                    name=tg["name"],
+                    rate=Decimal(str(tg["rate"])),
+                    tax_type=tg["type"],
+                    is_active=True
+                )
+                db.add(tax_group)
+            
+            db.commit()
+            print(f"[OK] Created {len(tax_groups)} VAT Tax Groups")
         
         print("\n[SUCCESS] Seed data created successfully!")
         print("\nLogin credentials:")

@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 
 from database import engine, Base
-from routers import auth, items, partners, warehouses, inventory, wms, planning, qms, users, bom, workorder, machines, sales, accounting
+from routers import auth, items, partners, warehouses, inventory, wms, planning, qms, users, bom, workorder, machines, sales, accounting, chart_of_accounts, thai_tax
 
 load_dotenv()
 
@@ -48,6 +48,8 @@ app.include_router(workorder.router, prefix="/api/workorders", tags=["Work Order
 app.include_router(machines.router)
 app.include_router(sales.router)
 app.include_router(accounting.router)
+app.include_router(chart_of_accounts.router)
+app.include_router(thai_tax.router)
 
 @app.get("/")
 def read_root():
@@ -65,4 +67,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
